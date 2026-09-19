@@ -163,16 +163,15 @@ export default function AuditLog() {
           <p className="text-2xl font-black text-gray-900 mt-1">
             {summary.pending}
           </p>
-        </div>
-        +{" "}
+        </div>{" "}
         <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm">
-          +{" "}
-          <p className="text-xs text-gray-500 font-bold uppercase">Cancelled</p>
-          +{" "}
+          {" "}
+          <p className="text-xs text-gray-500 font-bold uppercase">
+            Cancelled
+          </p>{" "}
           <p className="text-2xl font-black text-gray-900 mt-1">
             {summary.cancelled}
-          </p>
-          +{" "}
+          </p>{" "}
         </div>
       </div>
 
