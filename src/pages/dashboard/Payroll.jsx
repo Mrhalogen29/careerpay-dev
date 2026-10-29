@@ -170,6 +170,10 @@ export default function Payroll({ onNext, onPaymentStarted, setActivePage }) {
 
       await correctPayrollItem(payroll._id, employeeId, { overtime });
 
+      if (payroll.status === "calculated") {
+        await calculatePayroll(payroll._id);
+      }
+
       await fetchPayroll();
     } catch (err) {
       console.error("Save overtime failed:", err);
@@ -195,6 +199,7 @@ export default function Payroll({ onNext, onPaymentStarted, setActivePage }) {
         Tax: item.deductions?.tax || 0,
         Pension: item.deductions?.pension || 0,
         NHF: item.deductions?.nhf || 0,
+        "LOan Repayment": item.deductions?.loanRepayment || 0,
         Overtime: item.additions?.overtime || 0,
         "Net Salary": item.netSalary || 0,
         "Payment Status": item.paymentStatus || "pending",
@@ -354,7 +359,9 @@ export default function Payroll({ onNext, onPaymentStarted, setActivePage }) {
             </button>
           </div>
         </div>
-        ERROR
+
+        {/* ERROR MESSAGE */}
+
         {error && (
           <div className="mb-6 flex items-center gap-3 bg-red-50 border border-red-200 text-red-700 rounded-xl px-5 py-4">
             <AlertCircle size={20} />
@@ -592,6 +599,10 @@ export default function Payroll({ onNext, onPaymentStarted, setActivePage }) {
                   </th>
 
                   <th className="text-right px-6 py-4 text-xs font-bold text-gray-500 uppercase">
+                    Loan
+                  </th>
+
+                  <th className="text-right px-6 py-4 text-xs font-bold text-gray-500 uppercase">
                     Overtime
                   </th>
 
@@ -608,7 +619,7 @@ export default function Payroll({ onNext, onPaymentStarted, setActivePage }) {
                 {filteredItems.length === 0 ? (
                   <tr>
                     <td
-                      colSpan="6"
+                      colSpan="9"
                       className="px-6 py-12 text-center text-gray-500"
                     >
                       No employees found in this payroll.
@@ -656,6 +667,13 @@ export default function Payroll({ onNext, onPaymentStarted, setActivePage }) {
 
                         <td className="px-6 py-4 text-right text-gray-700">
                           ₦{Number(item.deductions?.nhf || 0).toLocaleString()}
+                        </td>
+
+                        <td className="px-6 py-4 text-right text-gray-700">
+                          ₦
+                          {Number(
+                            item.deductions?.loanRepayment || 0,
+                          ).toLocaleString()}
                         </td>
 
                         <td className="px-6 py-4 text-right">

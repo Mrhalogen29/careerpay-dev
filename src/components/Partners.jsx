@@ -1,5 +1,4 @@
 import React from "react";
-import { motion } from "framer-motion";
 import Marquee from "react-fast-marquee";
 
 const Partners = () => {
@@ -14,8 +13,8 @@ const Partners = () => {
 
   return (
     <section className="bg-black py-20 overflow-hidden">
-      <div className="max-w-7xl mx-auto px-6 mb-12 text-center">
-        <p className="text-gray-500 uppercase tracking-[0.2em] text-sm font-semibold">
+      <div className="max-w-7xl mx-auto px-6 mb-14 text-center">
+        <p className="text-gray-400 uppercase tracking-[0.2em] text-base lg:text-lg font-semibold">
           Trusted by Industry Leaders
         </p>
       </div>
@@ -25,13 +24,17 @@ const Partners = () => {
         <div className="absolute left-0 top-0 w-32 h-full bg-gradient-to-r from-black to-transparent z-10 pointer-events-none" />
         <div className="absolute right-0 top-0 w-32 h-full bg-gradient-to-l from-black to-transparent z-10 pointer-events-none" />
 
+        {/* Moving row: pauses when the mouse is on it */}
         <Marquee speed={40} gradient={false} pauseOnHover={true}>
           {partners.map((partner, index) => (
-            <div key={index} className="mx-12 lg:mx-20 opacity-40 hover:opacity-100 transition-opacity duration-300">
+            <div
+              key={index}
+              className="mx-5 lg:mx-8 flex h-28 w-52 lg:h-36 lg:w-72 items-center justify-center rounded-2xl bg-white px-8 py-6 shadow-lg shadow-black/40 transition-transform duration-300 hover:scale-110"
+            >
               <img
                 src={partner.src}
                 alt={partner.alt}
-                className="h-10 lg:h-12 w-auto grayscale brightness-200"
+                className="max-h-full max-w-full w-auto object-contain"
               />
             </div>
           ))}

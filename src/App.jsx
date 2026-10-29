@@ -4,6 +4,7 @@ import {
   Routes,
   Route,
   Navigate,
+  useSearchParams,
 } from "react-router-dom";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
@@ -28,11 +29,24 @@ import CreateNewPassword from "./pages/CreateNewPassword";
 import EmailVerification from "./pages/EmailVerification";
 import VerifyEmail from "./pages/VerifyEmail";
 import TaxCalculator from "./pages/TaxCalculator";
+import Pricing from "./components/Pricing";
+import PurchaseReturn from "./pages/PurchaseReturn";
+import SubscriptionVerify from "./pages/SubscriptionVerify";
+import SubscriptionGate from "./components/SubscriptionGate";
+import Subscription from "./pages/dashboard/Subscription";
+import BookDemo from "./pages/BookDemo";
 
 //Dashboard pages
 import DashboardApp from "./pages/dashboard/DashboardApp";
 import EmployeesList from "./pages/dashboard/EmployeesList";
 
+// Flutterwave returns here for two flows: payments made before sign-up (PUR-)
+// and in-app renewals. The reference prefix tells them apart.
+const VerifyRouter = () => {
+  const [params] = useSearchParams();
+  const ref = params.get("reference") || params.get("tx_ref") || "";
+  return ref.startsWith("PUR-") ? <PurchaseReturn /> : <SubscriptionVerify />;
+};
 const App = () => {
   return (
     <main className="font-sfPro font-normal scroll-smooth">
@@ -45,11 +59,14 @@ const App = () => {
               <>
                 <Navbar />
                 <Home />
+                <Pricing />
                 <Footer />
               </>
             }
           />
           <Route path="/signup" element={<SignUp />} />
+          <Route path="/book-demo" element={<BookDemo />} />
+          <Route path="/subscription/verify" element={<VerifyRouter />} />
           <Route path="/login" element={<Login />} />
           <Route
             path="/about"
@@ -137,16 +154,28 @@ const App = () => {
           <Route path="/verify-email" element={<VerifyEmail />} />
           <Route path="/reset-password" element={<CreateNewPassword />} />
           <Route path="/tax" element={<TaxCalculator />} />
-          //protected dashboard Routes
+
+          {/* Protected dashboard routes */}
           <Route
             path="/dashboard"
             element={
               <ProtectedRoute>
-                <DashboardApp />
+                <SubscriptionGate>
+                  <DashboardApp />
+                </SubscriptionGate>
               </ProtectedRoute>
             }
           />
-          //employees
+          {/* Subscription renewal. Not behind the gate, or it would loop */}
+          <Route
+            path="/renew"
+            element={
+              <ProtectedRoute>
+                <Subscription />
+              </ProtectedRoute>
+            }
+          />
+          {/* Employees */}
           <Route
             path="/employeeList"
             element={
@@ -155,6 +184,7 @@ const App = () => {
               </ProtectedRoute>
             }
           />
+
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
       </Router>

@@ -1,86 +1,140 @@
 import React from "react";
 import { AiFillInstagram } from "react-icons/ai";
-import { FaFacebookSquare, FaLinkedin, FaTwitter } from "react-icons/fa";
-import { IoLogoYoutube } from "react-icons/io5";
+import { FaLinkedin, FaTwitter } from "react-icons/fa";
 import { Link } from "react-router-dom";
+
+const COMPANY_LINKS = [
+  { label: "Home", to: "/" },
+  { label: "About Us", to: "/about" },
+  { label: "Careers", to: "/careers" },
+  { label: "Contact", to: "/contact" },
+];
+
+const SUPPORT_LINKS = [
+  { label: "Help Center", to: "/help" },
+  { label: "FAQ", to: "/faq" },
+  { label: "Privacy Policy", to: "/privacy" },
+  { label: "Terms of Service", to: "/terms" },
+];
+
+// Replace "#" with your real profile links
+const SOCIALS = [
+  { label: "Twitter", href: "#", Icon: FaTwitter },
+  { label: "LinkedIn", href: "#", Icon: FaLinkedin },
+  { label: "Instagram", href: "#", Icon: AiFillInstagram },
+];
+
+const linkClass =
+  "text-xl text-gray-400 transition-colors hover:text-white focus:outline-none focus-visible:text-white focus-visible:underline";
 
 const Footer = () => {
   return (
-    <footer className="bg-black pt-24 pb-12 px-6 lg:px-20 border-t border-white/5">
-      <div className="max-w-7xl mx-auto">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 mb-16">
-          {/* Brand Column */}
-          <div className="lg:col-span-1">
-            <Link to="/" className="inline-block mb-8">
-              <img
-                src="/careerpay-logo.png"
-                alt="CareerPay"
-                className="w-40 h-auto"
-              />
-            </Link>
-            <p className="text-gray-500 text-sm leading-relaxed mb-8 max-w-xs">
-              Simplifying compensation management for organizations through innovation and commitment.
-            </p>
-            <div className="flex items-center gap-4">
-              <a href="#" className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-gray-400 hover:bg-blue-600 hover:text-white transition-all">
-                <FaTwitter />
+    <footer className="border-t border-white/5 bg-black px-6 pb-10 pt-20 lg:px-10 lg:pt-28">
+      <div className="grid w-full grid-cols-1 gap-12 sm:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1.4fr] lg:gap-16">
+        {/* Brand */}
+        <div className="sm:col-span-2 lg:col-span-1">
+          <Link to="/" className="inline-block">
+            <img
+              src="/careerpay-logo.png"
+              alt="CareerPay"
+              className="h-auto w-44"
+            />
+          </Link>
+          <p className="mt-6 max-w-sm text-lg leading-relaxed text-gray-400">
+            Simplifying compensation management for organizations through
+            innovation and commitment.
+          </p>
+          <div className="mt-8 flex items-center gap-3">
+            {SOCIALS.map(({ label, href, Icon }) => (
+              <a
+                key={label}
+                href={href}
+                aria-label={label}
+                className="flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-xl text-gray-300 transition-all hover:bg-blue-600 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white"
+              >
+                <Icon />
               </a>
-              <a href="#" className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-gray-400 hover:bg-blue-600 hover:text-white transition-all">
-                <FaLinkedin />
-              </a>
-              <a href="#" className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-gray-400 hover:bg-blue-600 hover:text-white transition-all">
-                <AiFillInstagram />
-              </a>
-            </div>
-          </div>
-
-          {/* Links Columns */}
-          <div>
-            <h4 className="text-white font-bold mb-8 uppercase tracking-widest text-xs">Company</h4>
-            <ul className="space-y-4">
-              <li><Link to="/" className="text-gray-500 hover:text-white transition-colors text-sm">Home</Link></li>
-              <li><Link to="/about" className="text-gray-500 hover:text-white transition-colors text-sm">About Us</Link></li>
-              <li><Link to="/careers" className="text-gray-500 hover:text-white transition-colors text-sm">Careers</Link></li>
-              <li><Link to="/contact" className="text-gray-500 hover:text-white transition-colors text-sm">Contact</Link></li>
-            </ul>
-          </div>
-
-          <div>
-            <h4 className="text-white font-bold mb-8 uppercase tracking-widest text-xs">Support</h4>
-            <ul className="space-y-4">
-              <li><Link to="/help" className="text-gray-500 hover:text-white transition-colors text-sm">Help Center</Link></li>
-              <li><Link to="/faq" className="text-gray-500 hover:text-white transition-colors text-sm">FAQ</Link></li>
-              <li><Link to="/privacy" className="text-gray-500 hover:text-white transition-colors text-sm">Privacy Policy</Link></li>
-              <li><Link to="/terms" className="text-gray-500 hover:text-white transition-colors text-sm">Terms of Service</Link></li>
-            </ul>
-          </div>
-
-          {/* Newsletter Column */}
-          <div>
-            <h4 className="text-white font-bold mb-8 uppercase tracking-widest text-xs">Stay Updated</h4>
-            <p className="text-gray-500 text-sm mb-6">Subscribe to our newsletter for the latest updates.</p>
-            <form className="relative">
-              <input
-                type="email"
-                placeholder="Email address"
-                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
-              />
-              <button className="absolute right-2 top-2 bottom-2 bg-blue-600 hover:bg-blue-700 text-white px-4 rounded-lg text-xs font-bold transition-all">
-                Join
-              </button>
-            </form>
+            ))}
           </div>
         </div>
 
-        <div className="pt-8 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-4">
-          <p className="text-gray-600 text-xs">
-            © 2026 CareerPay. All rights reserved.
+        {/* Company */}
+        <nav aria-label="Company">
+          <h4 className="mb-6 text-lg font-semibold text-white">Company</h4>
+          <ul className="space-y-4">
+            {COMPANY_LINKS.map((item) => (
+              <li key={item.label}>
+                <Link to={item.to} className={linkClass}>
+                  {item.label}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </nav>
+
+        {/* Support */}
+        <nav aria-label="Support">
+          <h4 className="mb-6 text-lg font-semibold text-white">Support</h4>
+          <ul className="space-y-4">
+            {SUPPORT_LINKS.map((item) => (
+              <li key={item.label}>
+                <Link to={item.to} className={linkClass}>
+                  {item.label}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </nav>
+
+        {/* Newsletter (same behaviour as before) */}
+        <div className="sm:col-span-2 lg:col-span-1">
+          <h4 className="mb-6 text-lg font-semibold text-white">
+            Stay updated
+          </h4>
+          <p className="mb-5 max-w-sm text-lg leading-relaxed text-gray-400">
+            Subscribe to our newsletter for the latest updates.
           </p>
-          <div className="flex gap-8">
-            <Link to="/privacy" className="text-gray-600 hover:text-white text-xs transition-colors">Privacy Policy</Link>
-            <Link to="/terms" className="text-gray-600 hover:text-white text-xs transition-colors">Terms of Service</Link>
-            <Link to="/cookies" className="text-gray-600 hover:text-white text-xs transition-colors">Cookie Policy</Link>
-          </div>
+          <form className="relative max-w-md">
+            <label htmlFor="footer-email" className="sr-only">
+              Email address
+            </label>
+            <input
+              id="footer-email"
+              type="email"
+              placeholder="Email address"
+              className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-4 pr-28 text-lg text-white placeholder:text-gray-500 transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <button className="absolute bottom-2 right-2 top-2 rounded-lg bg-blue-600 px-5 text-base font-semibold text-white transition-all hover:bg-blue-700">
+              Join
+            </button>
+          </form>
+        </div>
+      </div>
+
+      {/* Bottom bar */}
+      <div className="mt-16 flex flex-col items-start gap-4 border-t border-white/10 pt-8 md:flex-row md:items-center md:justify-between">
+        <p className="text-base text-gray-500">
+          © 2026 CareerPay. All rights reserved.
+        </p>
+        <div className="flex flex-wrap gap-x-8 gap-y-2">
+          <Link
+            to="/privacy"
+            className="text-base text-gray-500 transition-colors hover:text-white"
+          >
+            Privacy Policy
+          </Link>
+          <Link
+            to="/terms"
+            className="text-base text-gray-500 transition-colors hover:text-white"
+          >
+            Terms of Service
+          </Link>
+          <Link
+            to="/cookies"
+            className="text-base text-gray-500 transition-colors hover:text-white"
+          >
+            Cookie Policy
+          </Link>
         </div>
       </div>
     </footer>

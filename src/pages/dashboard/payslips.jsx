@@ -179,8 +179,17 @@ export default function Payslip() {
               </h4>
               <Row label="Base Salary" value={payslip.payslip?.baseSalary} />
               <Row label="Bonus" value={payslip.payslip?.additions?.bonus} />
+
               <Row
-                label="Overtime"
+                label="Allowances"
+                value={(payslip.payslip?.additions?.allowances || []).reduce(
+                  (sum, a) => sum + (a.amount || 0),
+                  0,
+                )}
+              />
+
+              <Row
+                label="Overtime (untaxed)"
                 value={payslip.payslip?.additions?.overtime}
               />
               <Row
@@ -209,12 +218,22 @@ export default function Payslip() {
                 value={payslip.payslip?.deductions?.nhf}
                 negative
               />
+
+              {Number(payslip.payslip?.deductions?.loanRepayment) > 0 && (
+                <Row
+                  label="Loan Repayment"
+                  value={payslip.payslip?.deductions?.loanRepayment}
+                  negative
+                />
+              )}
+
               <Row
                 label="Total Deductions"
                 value={
                   (payslip.payslip?.deductions?.tax || 0) +
                   (payslip.payslip?.deductions?.pension || 0) +
-                  (payslip.payslip?.deductions?.nhf || 0)
+                  (payslip.payslip?.deductions?.nhf || 0) +
+                  (payslip.paysip?.deductions?.loanRepayment || 0)
                 }
                 bold
                 negative

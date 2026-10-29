@@ -46,6 +46,15 @@ const FILTERS = [
   { value: "cancelled", label: "Cancelled" },
 ];
 
+const SUMMARY_CARDS = [
+  { key: "total", label: "Total", color: "text-gray-500" },
+  { key: "success", label: "Success", color: "text-green-600" },
+  { key: "failed", label: "Failed", color: "text-red-600" },
+  { key: "processing", label: "Processing", color: "text-orange-600" },
+  { key: "pending", label: "Pending", color: "text-gray-500" },
+  { key: "cancelled", label: "Cancelled", color: "text-gray-500" },
+];
+
 export default function AuditLog() {
   const [summary, setSummary] = useState({
     total: 0,
@@ -53,6 +62,7 @@ export default function AuditLog() {
     failed: 0,
     pending: 0,
     processing: 0,
+    cancelled: 0,
   });
   const [transactions, setTransactions] = useState([]);
   const [activity, setActivity] = useState([]);
@@ -131,48 +141,20 @@ export default function AuditLog() {
         </div>
       )}
 
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-5">
-        <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm">
-          <p className="text-xs text-gray-500 font-bold uppercase">Total</p>
-          <p className="text-2xl font-black text-gray-900 mt-1">
-            {summary.total}
-          </p>
-        </div>
-        <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm">
-          <p className="text-xs text-green-600 font-bold uppercase">Success</p>
-          <p className="text-2xl font-black text-gray-900 mt-1">
-            {summary.success}
-          </p>
-        </div>
-        <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm">
-          <p className="text-xs text-red-600 font-bold uppercase">Failed</p>
-          <p className="text-2xl font-black text-gray-900 mt-1">
-            {summary.failed}
-          </p>
-        </div>
-        <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm">
-          <p className="text-xs text-orange-600 font-bold uppercase">
-            Processing
-          </p>
-          <p className="text-2xl font-black text-gray-900 mt-1">
-            {summary.processing}
-          </p>
-        </div>
-        <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm">
-          <p className="text-xs text-gray-500 font-bold uppercase">Pending</p>
-          <p className="text-2xl font-black text-gray-900 mt-1">
-            {summary.pending}
-          </p>
-        </div>{" "}
-        <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm">
-          {" "}
-          <p className="text-xs text-gray-500 font-bold uppercase">
-            Cancelled
-          </p>{" "}
-          <p className="text-2xl font-black text-gray-900 mt-1">
-            {summary.cancelled}
-          </p>{" "}
-        </div>
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-5">
+        {SUMMARY_CARDS.map((card) => (
+          <div
+            key={card.key}
+            className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm"
+          >
+            <p className={`text-xs font-bold uppercase ${card.color}`}>
+              {card.label}
+            </p>
+            <p className="text-2xl font-black text-gray-900 mt-1">
+              {summary[card.key] ?? 0}
+            </p>
+          </div>
+        ))}
       </div>
 
       <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-sm overflow-hidden">

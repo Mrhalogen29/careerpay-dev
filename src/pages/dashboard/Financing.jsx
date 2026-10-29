@@ -18,6 +18,10 @@ import {
   getFinancingStats,
 } from "../../services/financing";
 import { motion, AnimatePresence } from "framer-motion";
+import LoanApprovals from "./LoanApprovals";
+
+// Staff loans are on hold. Set VITE_ENABLE_STAFF_LOANS=true (and restart Vite) to bring them back.
+const LOANS_ENABLED = import.meta.env.VITE_ENABLE_STAFF_LOANS === "true";
 
 const STATUS_STYLES = {
   approved: "bg-green-50 text-green-600",
@@ -424,6 +428,9 @@ export default function Financing() {
           </AnimatePresence>
         </div>
       </div>
+
+      {/* Staff loan requests from employees (separate from company financing above) */}
+      {LOANS_ENABLED && <LoanApprovals embedded />}
 
       {showModal && (
         <ApplyModal

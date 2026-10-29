@@ -12,6 +12,12 @@ export const updateCompanyDetails = async (data) => {
   return res.data;
 };
 
+// UPDATE COMPANY SETTINGS (pay frequency, currency, payroll rules)
+export const updateCompanySettings = async (data) => {
+  const res = await API.put("/companies/settings", data);
+  return res.data;
+};
+
 // GET COMPANY EMPLOYEES
 export const getCompanyEmployees = async () => {
   const res = await API.get("/employees");
@@ -37,6 +43,12 @@ export const updateEmployee = async (id, data) => {
   const res = await API.put(`/employees/${id}`, data);
   return res.data;
 };
+
+// DELETE EMPLOYEE
+export const deleteEmployee = async (id) => {
+  const res = await API.delete(`/employees/${id}`);
+  return res.data;
+};
 // GET DEPARTMENTS
 export const getDepartments = async () => {
   const res = await API.get("/departments");
@@ -51,5 +63,19 @@ export const getCompanyStats = async () => {
 
 export const getNigerianBanks = async () => {
   const res = await API.get("/employees/banks");
+  return res.data;
+};
+
+export const uploadEmployeeDocuments = async (employeeId, formData) => {
+  const res = await API.post(`/employees/${employeeId}/documents`, formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+  return res.data;
+};
+
+export const getEmployeeDocument = async (employeeId, docType) => {
+  const res = await API.get(`/employees/${employeeId}/documents/${docType}`, {
+    responseType: "blob",
+  });
   return res.data;
 };

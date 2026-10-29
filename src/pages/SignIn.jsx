@@ -3,12 +3,10 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import { loginUser } from "../services/auth";
 import { Eye, EyeOff, ShieldCheck } from "lucide-react";
 
-
 const SignIn = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const from =
-  location.state?.from?.pathname || "/dashboard";
+  const from = location.state?.from?.pathname || "/dashboard";
 
   const [formData, setFormData] = useState({
     email: "",
@@ -16,8 +14,6 @@ const SignIn = () => {
   });
 
   const [showPassword, setShowPassword] = useState(false);
-
-  
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -35,12 +31,26 @@ const SignIn = () => {
 
       console.log("SignIn success:", response);
 
-      const token =
-        response?.token ||
-        response?.data?.token;
+      const token = response?.token || response?.data?.token;
 
       if (token) {
         localStorage.setItem("token", token);
+      }
+
+      // Remember whether this user is still on the temporary password
+      const mustChange =
+        response?.data?.user?.mustChangePassword ??
+        response?.user?.mustChangePassword ??
+        false;
+      try {
+        if (mustChange) {
+          localStorage.setItem("mustChangePassword", "true");
+        } else {
+          localStorage.removeItem("mustChangePassword");
+        }
+        sessionStorage.removeItem("tempPwBannerDismissed");
+      } catch {
+        // storage can be unavailable; the banner just won't show
       }
 
       alert("Login successful");
@@ -50,11 +60,7 @@ const SignIn = () => {
       console.error("FULL ERROR:", error);
       console.error("ERROR RESPONSE:", error.response?.data);
 
-      alert(
-        error.response?.data?.message ||
-        error.message ||
-        "SignIn failed"
-      );
+      alert(error.response?.data?.message || error.message || "SignIn failed");
     }
   };
 
@@ -64,10 +70,13 @@ const SignIn = () => {
       <div className="w-full lg:w-1/2 flex flex-col items-center justify-center p-8 lg:p-16 animate-fadeIn">
         <div className="max-w-md w-full">
           {/* Logo */}
-          <Link to="/" className="inline-flex items-center mb-12 bg-black rounded-xl px-3 py-2">
-            <img 
-              src="/careerpay-logo.png" 
-              alt="CareerPay" 
+          <Link
+            to="/"
+            className="inline-flex items-center mb-12 bg-black rounded-xl px-3 py-2"
+          >
+            <img
+              src="/careerpay-logo.png"
+              alt="CareerPay"
               style={{ width: "140px", height: "auto" }}
             />
           </Link>
@@ -99,7 +108,10 @@ const SignIn = () => {
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                   Password*
                 </label>
-                <Link to="/forgot-password" className="text-sm font-medium text-blue-600 hover:underline">
+                <Link
+                  to="/forgot-password"
+                  className="text-sm font-medium text-blue-600 hover:underline"
+                >
                   Forgot Password?
                 </Link>
               </div>
@@ -134,7 +146,10 @@ const SignIn = () => {
 
             <p className="text-center text-sm text-gray-500 dark:text-gray-400 mt-6">
               Don't have an account?{" "}
-              <Link to="/signup" className="text-blue-600 font-bold hover:underline">
+              <Link
+                to="/signup"
+                className="text-blue-600 font-bold hover:underline"
+              >
                 Sign Up
               </Link>
             </p>
@@ -151,7 +166,9 @@ const SignIn = () => {
         />
         <div className="absolute inset-0 bg-gradient-to-t from-blue-900/50 to-transparent"></div>
         <div className="absolute bottom-16 left-16 right-16 text-white animate-slideUp">
-          <h2 className="text-4xl font-bold mb-4">Welcome back to CareerPay.</h2>
+          <h2 className="text-4xl font-bold mb-4">
+            Welcome back to CareerPay.
+          </h2>
           <p className="text-xl opacity-90 font-medium">
             Your hub for compensation, ESOPs, and talent credit financing.
           </p>

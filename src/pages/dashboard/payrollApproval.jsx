@@ -126,6 +126,16 @@ export default function PayrollApproval({ payrollId, onBack, onApproved }) {
     payroll.summary?.totalNet ||
     employees.reduce((total, item) => total + Number(item.netSalary || 0), 0);
 
+  const totalOvertime = employees.reduce(
+    (total, item) => total + Number(item.additions?.overtime || 0),
+    0,
+  );
+
+  const totalLoanRepayments = employees.reduce(
+    (total, item) => total + Number(item.deductions?.loanRepayment || 0),
+    0,
+  );
+
   const isApproved = payroll.status === "approved";
 
   return (
@@ -210,6 +220,26 @@ export default function PayrollApproval({ payrollId, onBack, onApproved }) {
 
                 <p className="text-xl font-black text-gray-900 mt-1 capitalize">
                   {payroll.status}
+                </p>
+              </div>
+
+              <div>
+                <p className="text-sm text-gray-600 font-medium">
+                  Overtime (untaxed)
+                </p>
+
+                <p className="text-xl font-black text-gray-900 mt-1">
+                  ₦{totalOvertime.toLocaleString()}
+                </p>
+              </div>
+
+              <div>
+                <p className="text-sm text-gray-600 font-medium">
+                  Loan Repayments
+                </p>
+
+                <p className="text-xl font-black text-gray-900 mt-1">
+                  ₦{totalLoanRepayments.toLocaleString()}
                 </p>
               </div>
             </div>
@@ -319,13 +349,30 @@ export default function PayrollApproval({ payrollId, onBack, onApproved }) {
                     >
                       <div>
                         <p className="text-sm font-bold text-gray-900">
-                          {employee.firstName} {employee.lastName}
+                          {employee.user?.firstName} {employee.user?.lastName}
                         </p>
 
                         <p className="text-xs text-gray-500">
                           Net salary: ₦
                           {Number(item.netSalary || 0).toLocaleString()}
                         </p>
+
+                        {Number(item.additions?.overtime) > 0 && (
+                          <p className="text-xs text-blue-600">
+                            Includes overtime ₦
+                            {Number(item.additions.overtime).toLocaleString()}{" "}
+                            (untaxed)
+                          </p>
+                        )}
+
+                        {Number(item.deductions?.loanRepayment) > 0 && (
+                          <p className="text-xs text-orange-600">
+                            Loan repayment −₦
+                            {Number(
+                              item.deductions.loanRepayment,
+                            ).toLocaleString()}
+                          </p>
+                        )}
                       </div>
 
                       {hasBankAccount ? (
@@ -367,7 +414,9 @@ export default function PayrollApproval({ payrollId, onBack, onApproved }) {
 
               <button
                 onClick={handleApprove}
-                disabled={approving || isApproved}
+                disabled={
+                  approving || isApproved || payroll.status !== "calculated"
+                }
                 className="flex items-center gap-2 px-6 py-2.5 rounded-lg bg-[#1D4EFF] text-white font-bold text-sm hover:bg-blue-700 transition disabled:opacity-50"
               >
                 {approving ? (

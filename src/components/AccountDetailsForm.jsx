@@ -13,7 +13,11 @@ const AccountDetailsForm = ({ onBack, onFinish, data, updateData }) => {
       <div className="w-full lg:w-[45%] bg-[#1D4EFF] flex flex-col items-center justify-center p-8 lg:p-16 text-white">
         <div className="max-w-md w-full text-left">
           <div className="mb-16">
-            <img src="/Desktop-28.png" alt="CareerPay" className="h-12 brightness-0 invert" />
+            <img
+              src="/Desktop-28.png"
+              alt="CareerPay"
+              className="h-12 brightness-0 invert"
+            />
           </div>
           <h1 className="text-4xl lg:text-5xl font-bold leading-tight mb-6">
             Manage your future compensation in one space
@@ -32,15 +36,24 @@ const AccountDetailsForm = ({ onBack, onFinish, data, updateData }) => {
 
         <div className="max-w-md w-full text-center">
           <div className="mb-10 flex justify-center">
-            <img src="/careerpay-logo.png" alt="CareerPay Logo" className="h-12 w-auto object-contain" />
+            <img
+              src="/careerpay-logo.png"
+              alt="CareerPay Logo"
+              className="h-12 w-auto object-contain"
+            />
           </div>
 
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-10">
             Account <span className="text-gray-500 font-medium">Details</span>
           </h2>
 
-          <form onSubmit={(e) => { e.preventDefault(); onFinish(); }} className="space-y-6 text-left">
-
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              onFinish();
+            }}
+            className="space-y-6 text-left"
+          >
             {/* Company Name */}
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -118,41 +131,27 @@ const AccountDetailsForm = ({ onBack, onFinish, data, updateData }) => {
                   className="w-full px-4 py-4 rounded-lg bg-gray-100 dark:bg-gray-800 border-none focus:ring-2 focus:ring-[#1D4EFF] outline-none transition-all appearance-none cursor-pointer text-gray-500"
                   required
                 >
-                  <option value="" disabled>Enter industry</option>
+                  <option value="" disabled>
+                    Enter industry
+                  </option>
                   <option value="software">Tech</option>
                   <option value="banking">Banking</option>
                   <option value="construction">Construction</option>
                   <option value="manufacturer">Manufacturer</option>
+                  <option value="agriculture">Agriculture</option>
+                  <option value="fashion">Fashion</option>
+                  <option value="engineering">Engineering</option>
+                  <option value="real-estate">Real-estate</option>
+                  <option value="fintech">Fintech</option>
+                  <option value="marketing">Marketing</option>
+                  <option value="healthcare">Healthcare</option>
+                  <option value="education">Education</option>
                 </select>
                 <div className="absolute inset-y-0 right-4 flex items-center pointer-events-none text-gray-400">
                   <ChevronDown size={20} />
                 </div>
               </div>
             </div>
-
-            {/* Role */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Role
-              </label>
-              <div className="relative group">
-                <select
-  name="role"
-  value={data.role || ""}
-  onChange={(e) => updateData({ role: e.target.value })}
-  className="w-full px-4 py-4 rounded-lg bg-gray-100 dark:bg-gray-800 border-none focus:ring-2 focus:ring-[#1D4EFF] outline-none transition-all appearance-none cursor-pointer text-gray-500"
-  required
->
-  <option value="">Select role</option>
-  <option value="HR Manager">HR Manager</option>
-  <option value="CEO">CEO</option>
-</select>
-                <div className="absolute inset-y-0 right-4 flex items-center pointer-events-none text-gray-400">
-                  <ChevronDown size={20} />
-                </div>
-              </div>
-            </div>
-
             {/* Base Currency */}
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -166,7 +165,9 @@ const AccountDetailsForm = ({ onBack, onFinish, data, updateData }) => {
                   className="w-full px-4 py-4 rounded-lg bg-gray-100 dark:bg-gray-800 border-none focus:ring-2 focus:ring-[#1D4EFF] outline-none transition-all appearance-none cursor-pointer text-gray-500"
                   required
                 >
-                  <option value="" disabled>Enter Base Currency</option>
+                  <option value="" disabled>
+                    Enter Base Currency
+                  </option>
                   <option value="NGN">NGN</option>
                   <option value="USD">USD</option>
                 </select>

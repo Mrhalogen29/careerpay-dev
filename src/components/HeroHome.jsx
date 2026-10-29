@@ -56,9 +56,13 @@ const HeroHome = () => {
           >
             Get Started
           </Link>
-          <button className="bg-white/5 hover:bg-white/10 text-white border border-white/10 px-8 py-4 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 active:scale-95">
+
+          <Link
+            to="/book-demo"
+            className="bg-white/5 hover:bg-white/10 text-white border border-white/10 px-8 py-4 rounded-xl font-semibold text-center transition-all duration-300 transform hover:scale-105 active:scale-95"
+          >
             Book a Demo
-          </button>
+          </Link>
         </motion.div>
 
         {/* Hero Image / Dashboard Preview */}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { Fragment, useState, useEffect } from "react";
 import {
   User,
   Briefcase,
@@ -10,8 +10,13 @@ import {
   Edit2,
   Loader2,
   AlertCircle,
+  X,
 } from "lucide-react";
-import { addEmployee, getNigerianBanks } from "../../services/company";
+import {
+  addEmployee,
+  getNigerianBanks,
+  uploadEmployeeDocuments,
+} from "../../services/company";
 
 // Shared input styling — switches to a red ring + border when this field has a validation error
 const inputClass = (hasError) =>
@@ -31,6 +36,22 @@ const FieldError = ({ message }) => {
   );
 };
 
+// Optional documents the founder can attach while adding an employee
+const DOC_TYPES = [
+  {
+    key: "governmentId",
+    title: "Government ID",
+    desc: "Passport, Driver's License, or State ID",
+  },
+  {
+    key: "taxForm",
+    title: "Tax Form",
+    desc: "Employee's Withholding certificate",
+  },
+];
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
+const ALLOWED_TYPES = ["application/pdf", "image/jpeg", "image/png"];
+
 const AddEmployee = ({ setActivePage, onNext, onBack }) => {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -42,7 +63,8 @@ const AddEmployee = ({ setActivePage, onNext, onBack }) => {
     fullName: "",
     email: "",
     phone: "",
-    emergencyContact: "",
+    nextOfKinName: "",
+    nextOfKinPhone: "",
     homeAddress: "",
     // Step 2: Employment
     department: "",
@@ -58,10 +80,9 @@ const AddEmployee = ({ setActivePage, onNext, onBack }) => {
     bankCode: "",
     accountNumber: "",
     accountName: "",
-    // Step 3: Documents
+    // Step 3: Documents (optional)
     governmentId: null,
     taxForm: null,
-    directDepositForm: null,
   });
 
   // Load the live Nigerian bank list from the backend (sourced from Flutterwave),
@@ -86,9 +107,35 @@ const AddEmployee = ({ setActivePage, onNext, onBack }) => {
     }
   };
 
+  // Validates the chosen file's type and size before keeping it in state
+  const handleFileSelect = (key, file) => {
+    if (!file) return;
+    let error = "";
+    if (!ALLOWED_TYPES.includes(file.type))
+      error = "Only PDF, JPG or PNG files are allowed";
+    else if (file.size > MAX_FILE_SIZE) error = "File must be 5 MB or smaller";
+
+    if (error) {
+      setErrors((prev) => ({ ...prev, [key]: error }));
+      return;
+    }
+    setFormData((prev) => ({ ...prev, [key]: file }));
+    setErrors((prev) => {
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+  };
+
+  const removeFile = (key) => {
+    setFormData((prev) => ({ ...prev, [key]: null }));
+  };
+
   // Normalizes common Nigerian phone formats (080..., 234..., +234...) into the
   // +234XXXXXXXXXX shape the backend requires, as the person types.
+  // Used by both the employee's phone and the next of kin's phone.
   const handlePhoneChange = (e) => {
+    const { name } = e.target;
     let value = e.target.value.replace(/[^\d+]/g, ""); // strip spaces/dashes
     if (value.startsWith("0")) {
       value = "+234" + value.slice(1);
@@ -97,11 +144,11 @@ const AddEmployee = ({ setActivePage, onNext, onBack }) => {
     } else if (value && !value.startsWith("+")) {
       value = "+234" + value;
     }
-    setFormData((prev) => ({ ...prev, phone: value }));
-    if (errors.phone) {
+    setFormData((prev) => ({ ...prev, [name]: value }));
+    if (errors[name]) {
       setErrors((prev) => {
         const next = { ...prev };
-        delete next.phone;
+        delete next[name];
         return next;
       });
     }
@@ -128,7 +175,14 @@ const AddEmployee = ({ setActivePage, onNext, onBack }) => {
 
   // Required fields per step, matching the "*" labels shown in the form
   const REQUIRED_FIELDS = {
-    1: ["fullName", "email", "phone", "emergencyContact", "homeAddress"],
+    1: [
+      "fullName",
+      "email",
+      "phone",
+      "nextOfKinName",
+      "nextOfKinPhone",
+      "homeAddress",
+    ],
     2: [
       "department",
       "jobTitle",
@@ -147,7 +201,8 @@ const AddEmployee = ({ setActivePage, onNext, onBack }) => {
     fullName: "Full Name",
     email: "Email Address",
     phone: "Phone Number",
-    emergencyContact: "Emergency Contact",
+    nextOfKinName: "Next of Kin Name",
+    nextOfKinPhone: "Next of Kin Phone",
     homeAddress: "Home Address",
     department: "Department",
     jobTitle: "Job Title",
@@ -163,7 +218,7 @@ const AddEmployee = ({ setActivePage, onNext, onBack }) => {
 
   const validateStep = (currentStep) => {
     const fields = REQUIRED_FIELDS[currentStep];
-    if (!fields) return true; // Steps 3 (Documents) and 4 (Review) have no required fields to block on
+    if (!fields) return true; // Steps 3 (Documents, optional) and 4 (Review) have no required fields
 
     const newErrors = {};
     fields.forEach((field) => {
@@ -181,6 +236,13 @@ const AddEmployee = ({ setActivePage, onNext, onBack }) => {
       !/^\+234\d{10}$/.test(formData.phone)
     ) {
       newErrors.phone = "Phone must be in +234XXXXXXXXXX format";
+    }
+    if (
+      currentStep === 1 &&
+      formData.nextOfKinPhone &&
+      !/^\+234\d{10}$/.test(formData.nextOfKinPhone)
+    ) {
+      newErrors.nextOfKinPhone = "Phone must be in +234XXXXXXXXXX format";
     }
     if (formData.accountNumber && !/^\d{10}$/.test(formData.accountNumber)) {
       newErrors.accountNumber = "Account number must be exactly 10 digits";
@@ -225,6 +287,10 @@ const AddEmployee = ({ setActivePage, onNext, onBack }) => {
         lastName: formData.fullName.split(" ").slice(1).join(" ") || "",
         email: formData.email,
         phone: formData.phone,
+        nextOfKin: {
+          name: formData.nextOfKinName.trim(),
+          phone: formData.nextOfKinPhone,
+        },
         position: formData.jobTitle,
         department: formData.department,
         salary: {
@@ -244,7 +310,30 @@ const AddEmployee = ({ setActivePage, onNext, onBack }) => {
 
       const res = await addEmployee(payload);
       if (res.success) {
-        alert("Employee added successfully!");
+        // Documents are optional: upload only what was actually chosen.
+        // A failed upload must not undo the employee that was just created.
+        let docsOk = true;
+        const hasDocs = formData.governmentId || formData.taxForm;
+        if (hasDocs) {
+          try {
+            const newId =
+              res.data?._id || res.data?.employee?._id || res.data?.id;
+            const fd = new FormData();
+            if (formData.governmentId)
+              fd.append("governmentId", formData.governmentId);
+            if (formData.taxForm) fd.append("taxForm", formData.taxForm);
+            await uploadEmployeeDocuments(newId, fd);
+          } catch (err) {
+            docsOk = false;
+            console.error("Document upload failed:", err);
+          }
+        }
+
+        alert(
+          docsOk
+            ? "Employee added successfully!"
+            : "Employee was added, but the documents failed to upload. Please upload them from the employee's profile.",
+        );
 
         if (onNext) {
           onNext();
@@ -268,7 +357,7 @@ const AddEmployee = ({ setActivePage, onNext, onBack }) => {
   const renderStepper = () => (
     <div className="flex items-center justify-center mb-12">
       {steps.map((s, i) => (
-        <React.Fragment key={s.id}>
+        <Fragment key={s.id}>
           <div className="flex flex-col items-center relative">
             <div
               className={`w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all ${
@@ -285,7 +374,7 @@ const AddEmployee = ({ setActivePage, onNext, onBack }) => {
               className={`w-24 h-0.5 mx-2 ${step > s.id ? "bg-[#1D4EFF]" : "bg-gray-200"}`}
             ></div>
           )}
-        </React.Fragment>
+        </Fragment>
       ))}
     </div>
   );
@@ -351,20 +440,38 @@ const AddEmployee = ({ setActivePage, onNext, onBack }) => {
                 />
                 <FieldError message={errors.phone} />
               </div>
+              <div className="hidden md:block" />
+
+              {/* Next of kin */}
               <div className="space-y-2">
                 <label className="text-sm font-bold text-gray-700 uppercase tracking-wider">
-                  Emergency Contact*
+                  Next of Kin Name*
+                </label>
+                <input
+                  type="text"
+                  name="nextOfKinName"
+                  value={formData.nextOfKinName}
+                  onChange={handleChange}
+                  placeholder="Enter next of kin's full name"
+                  className={inputClass(!!errors.nextOfKinName)}
+                />
+                <FieldError message={errors.nextOfKinName} />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-bold text-gray-700 uppercase tracking-wider">
+                  Next of Kin Phone*
                 </label>
                 <input
                   type="tel"
-                  name="emergencyContact"
-                  value={formData.emergencyContact}
-                  onChange={handleChange}
-                  placeholder="Enter emergency contact"
-                  className={inputClass(!!errors.emergencyContact)}
+                  name="nextOfKinPhone"
+                  value={formData.nextOfKinPhone}
+                  onChange={handlePhoneChange}
+                  placeholder="+2348012345678"
+                  className={inputClass(!!errors.nextOfKinPhone)}
                 />
-                <FieldError message={errors.emergencyContact} />
+                <FieldError message={errors.nextOfKinPhone} />
               </div>
+
               <div className="md:col-span-2 space-y-2">
                 <label className="text-sm font-bold text-gray-700 uppercase tracking-wider">
                   Home Address*
@@ -614,39 +721,70 @@ const AddEmployee = ({ setActivePage, onNext, onBack }) => {
               <div>
                 <h2 className="text-xl font-bold text-gray-900">Documents</h2>
                 <p className="text-sm text-gray-500 font-medium">
-                  Upload required documents
+                  Upload documents (optional)
                 </p>
               </div>
             </div>
             <div className="space-y-4">
-              {[
-                {
-                  title: "Government ID",
-                  desc: "Passport, Driver's License, or State ID",
-                },
-                {
-                  title: "Tax Form",
-                  desc: "Employee's Withholding certificate",
-                },
-                {
-                  title: "Direct Deposit Form",
-                  desc: "Supporting bank document (optional — bank details are captured in the previous step)",
-                },
-              ].map((doc, i) => (
-                <div
-                  key={i}
-                  className="flex items-center justify-between p-6 bg-gray-50 rounded-2xl border border-gray-100 group hover:border-[#1D4EFF]/30 transition-all"
-                >
-                  <div>
-                    <h4 className="font-bold text-gray-900">{doc.title}</h4>
-                    <p className="text-sm text-gray-500">{doc.desc}</p>
+              {DOC_TYPES.map((doc) => {
+                const file = formData[doc.key];
+                return (
+                  <div key={doc.key}>
+                    <div
+                      className={`flex items-center justify-between p-6 bg-gray-50 rounded-2xl border transition-all ${
+                        errors[doc.key]
+                          ? "border-red-300"
+                          : "border-gray-100 hover:border-[#1D4EFF]/30"
+                      }`}
+                    >
+                      <div className="min-w-0">
+                        <h4 className="font-bold text-gray-900">
+                          {doc.title}{" "}
+                          <span className="text-xs font-medium text-gray-400">
+                            (optional)
+                          </span>
+                        </h4>
+                        <p className="text-sm text-gray-500">{doc.desc}</p>
+                        {file && (
+                          <p className="text-sm font-medium text-green-600 mt-1 truncate">
+                            {file.name} ({(file.size / 1024).toFixed(0)} KB)
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        {file && (
+                          <button
+                            type="button"
+                            onClick={() => removeFile(doc.key)}
+                            className="p-2 text-gray-400 hover:text-red-500"
+                            aria-label={`Remove ${doc.title}`}
+                          >
+                            <X size={18} />
+                          </button>
+                        )}
+                        <label className="flex items-center gap-2 px-6 py-2 bg-white text-[#1D4EFF] font-bold text-sm rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-all cursor-pointer">
+                          <Upload size={18} />
+                          {file ? "Replace" : "Upload"}
+                          <input
+                            type="file"
+                            accept=".pdf,.jpg,.jpeg,.png"
+                            className="hidden"
+                            onChange={(e) => {
+                              handleFileSelect(doc.key, e.target.files?.[0]);
+                              e.target.value = ""; // allow re-picking the same file
+                            }}
+                          />
+                        </label>
+                      </div>
+                    </div>
+                    <FieldError message={errors[doc.key]} />
                   </div>
-                  <button className="flex items-center gap-2 px-6 py-2 bg-white text-[#1D4EFF] font-bold text-sm rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-all">
-                    <Upload size={18} />
-                    Upload
-                  </button>
-                </div>
-              ))}
+                );
+              })}
+              <p className="text-xs text-gray-400">
+                Optional. PDF, JPG or PNG, up to 5 MB each. You can also add
+                them later.
+              </p>
             </div>
           </div>
         );
@@ -692,10 +830,18 @@ const AddEmployee = ({ setActivePage, onNext, onBack }) => {
                 </div>
                 <div>
                   <p className="text-[10px] font-bold text-gray-500 uppercase mb-1">
-                    Emergency Contact
+                    Next of Kin
                   </p>
                   <p className="text-sm font-medium">
-                    {formData.emergencyContact || "N/A"}
+                    {formData.nextOfKinName || "N/A"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold text-gray-500 uppercase mb-1">
+                    Next of Kin Phone
+                  </p>
+                  <p className="text-sm font-medium">
+                    {formData.nextOfKinPhone || "N/A"}
                   </p>
                 </div>
                 <div className="col-span-2">
@@ -820,6 +966,32 @@ const AddEmployee = ({ setActivePage, onNext, onBack }) => {
                     {formData.accountName || "N/A"}
                   </p>
                 </div>
+              </div>
+            </div>
+
+            <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm">
+              <div className="flex items-center justify-between mb-8">
+                <h3 className="text-lg font-bold uppercase tracking-widest text-gray-400">
+                  Documents
+                </h3>
+                <button
+                  onClick={() => setStep(3)}
+                  className="flex items-center gap-2 text-[#1D4EFF] font-bold text-sm hover:underline"
+                >
+                  <Edit2 size={16} /> Edits
+                </button>
+              </div>
+              <div className="grid grid-cols-2 gap-y-8 gap-x-4">
+                {DOC_TYPES.map((doc) => (
+                  <div key={doc.key}>
+                    <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">
+                      {doc.title}
+                    </p>
+                    <p className="text-sm font-bold text-gray-900 truncate">
+                      {formData[doc.key]?.name || "Not provided"}
+                    </p>
+                  </div>
+                ))}
               </div>
             </div>
           </div>

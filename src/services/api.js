@@ -1,7 +1,9 @@
 import axios from "axios";
 
 const API = axios.create({
-  baseURL: "https://careerpay-backend.onrender.com/api",
+  baseURL:
+    import.meta.env.VITE_API_URL ||
+    "https://careerpay-backend.onrender.com/api",
   headers: {
     "Content-Type": "application/json",
   },

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   LayoutDashboard,
   Users,
@@ -13,8 +13,11 @@ import {
   ChevronRight,
   ShieldCheck,
   History,
+  ClipboardCheck,
 } from "lucide-react";
+import { getAccess } from "../../services/access";
 
+// An item with `module` only shows when the company has paid for that module
 const navItems = [
   { icon: LayoutDashboard, label: "Dashboard", id: "dashboard" },
   {
@@ -30,19 +33,37 @@ const navItems = [
     icon: CreditCard,
     label: "Payroll",
     id: "payroll",
+    module: "payroll",
     children: [
       { label: "Run Payroll", id: "payroll" },
-      { laabel: "Overtime", id: "overtime" },
+
       { label: "Payslips", id: "payslip" },
     ],
   },
-  { icon: PieIcon, label: "ESOP", id: "esop" },
-  { icon: Wallet, label: "Financing", id: "financing" },
+  { icon: PieIcon, label: "ESOP", id: "esop", module: "esop" },
+  { icon: Wallet, label: "Financing", id: "financing", module: "financing" },
   { icon: Bell, label: "Notification", id: "notification" },
-  { icon: ShieldCheck, label: "Payment Gateway", id: "payment-gateway" },
+  {
+    icon: ShieldCheck,
+    label: "Payment Gateway",
+    id: "payment-gateway",
+    module: "payroll",
+  },
   { icon: History, label: "Audit log", id: "audit-log" },
   { icon: Settings, label: "Settings", id: "settings" },
 ];
+
+// What an employee may see. `module` ties an item to a company subscription.
+const employeeItems = [
+  { icon: LayoutDashboard, label: "Dashboard", id: "dashboard" },
+  { icon: CreditCard, label: "Payslips", id: "payslip", module: "payroll" },
+  { icon: Wallet, label: "My Loans", id: "my-loans", module: "loans" },
+  { icon: PieIcon, label: "ESOP", id: "esop", module: "esop" },
+  { icon: Bell, label: "Notification", id: "notification" },
+];
+
+// Staff loans are under review. Turn on with VITE_ENABLE_STAFF_LOANS=true
+const LOANS_ENABLED = import.meta.env.VITE_ENABLE_STAFF_LOANS === "true";
 
 export default function NewSidebar({
   activePage,
@@ -63,6 +84,58 @@ export default function NewSidebar({
       [id]: !prev[id],
     }));
   };
+
+  const [access, setAccess] = useState(null);
+  const [accessFailed, setAccessFailed] = useState(false);
+
+  useEffect(() => {
+    getAccess()
+      .then((res) => {
+        if (res.success) setAccess(res.data);
+        else setAccessFailed(true);
+      })
+      .catch(() => setAccessFailed(true));
+  }, []);
+
+  // Loan requests need both modules, matching the backend route gates
+  const canUseLoans = LOANS_ENABLED && !!(access?.financing && access?.payroll);
+  const canReviewLoans =
+    canUseLoans && ["founder", "admin", "hr"].includes(user?.role);
+
+  const isEmployee = user?.role === "employee";
+
+  const moduleOpen = (module) => {
+    if (!module) return true;
+    if (module === "loans") return canUseLoans;
+    if (!access) return accessFailed; // still loading: hidden. Check failed: open
+    return !!access[module];
+  };
+
+  let visibleItems;
+  if (!user) {
+    // Role not loaded yet: show only the dashboard (fail closed)
+    visibleItems = navItems.filter((i) => i.id === "dashboard");
+  } else if (isEmployee) {
+    visibleItems = employeeItems.filter((i) => moduleOpen(i.module));
+  } else {
+    // Founder / admin / HR: modules they have paid for, plus the loan links
+    const loanItems = [];
+    if (canUseLoans) {
+      loanItems.push({ icon: Wallet, label: "My Loans", id: "my-loans" });
+      if (canReviewLoans) {
+        loanItems.push({
+          icon: ClipboardCheck,
+          label: "Loan Requests",
+          id: "loan-approvals",
+        });
+      }
+    }
+    visibleItems = navItems
+      .filter((item) => moduleOpen(item.module))
+      .flatMap((item) =>
+        item.id === "financing" ? [item, ...loanItems] : [item],
+      );
+  }
 
   return (
     <>
@@ -103,7 +176,7 @@ export default function NewSidebar({
 
         {/* Navigation */}
         <nav className="flex-1 px-4 space-y-1.5 overflow-y-auto custom-scrollbar">
-          {navItems.map((item) => {
+          {visibleItems.map((item) => {
             const isActive =
               activePage === item.id ||
               item.children?.some((c) => c.id === activePage);

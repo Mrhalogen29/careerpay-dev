@@ -12,6 +12,12 @@ export const loginUser = async (data) => {
   return res.data;
 };
 
+// CHANGE PASSWORD (logged-in user)
+export const changePassword = async (data) => {
+  const res = await API.post("/auth/change-password", data);
+  return res.data;
+};
+
 // GET CURRENT USER
 export const getCurrentUser = async () => {
   const res = await API.get("/auth/me");

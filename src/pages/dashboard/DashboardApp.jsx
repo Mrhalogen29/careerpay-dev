@@ -1,25 +1,44 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 
 import NewSidebar from "../../components/dashboard/NewSidebar";
 import NewHeader from "../../components/dashboard/NewHeader";
 
 import CompanyDashboard from "./CompanyDashboard";
 import NewViewEmployees from "./NewViewEmployees";
+import TemporaryPasswordBanner from "./TemporaryPasswordBanner.jsx";
 import AddEmployee from "./AddEmployee";
 import EditEmployee from "./EditEmployee.jsx";
 import Payroll from "./Payroll.jsx";
 import PaymentGateway from "./PaymentGateway.jsx";
 import AuditLog from "./AuditLog.jsx";
 import Payslip from "./payslips.jsx";
+import MyPayslip from "./myPayslip.jsx";
 import Notification from "./Notification.jsx";
 import CompanySettings from "./CompanySettings";
 import PayrollApproval from "./payrollApproval.jsx";
 import ESOP from "./ESOP";
 import Financing from "./Financing";
+import EmployeeLoans from "./EmployeeLoans.jsx";
+import LoanApprovals from "./LoanApprovals.jsx";
 import EmployeeDashboard from "./EmployeeDashboard";
+import ModuleGuard from "../../components/ModuleGuard";
 
 import { useNavigate } from "react-router-dom";
 import { getCurrentUser } from "../../services/auth";
+import { getMyNotifications } from "../../services/notification.js";
+
+// A page listed here needs that module's subscription
+
+const PAGE_MODULE = {
+  payroll: "payroll",
+  "payroll-approval": "payroll",
+  "payment-gateway": "payroll",
+  payslip: "payroll",
+  financing: "financing",
+  "my-loans": ["financing", "payroll"],
+  "loan-approvals": ["financing", "payroll"],
+  esop: "esop",
+};
 
 const ComingSoon = ({ title }) => (
   <div className="p-6">
@@ -40,6 +59,9 @@ export default function DashboardApp() {
   const [selectedPayrollId, setSelectedPayrollId] = useState(null);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState(null);
 
+  // Number shown on the bell in the header
+  const [unreadCount, setUnreadCount] = useState(0);
+
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -55,18 +77,32 @@ export default function DashboardApp() {
     fetchUser();
   }, []);
 
-  const renderPage = () => {
-    console.log("Current activePage:", activePage);
-    console.log("Selected payroll:", selectedPayrollId);
+  // Unread notifications: load now, then refresh every 30 seconds
+  const refreshUnread = useCallback(async () => {
+    try {
+      const res = await getMyNotifications(true); // unread only
+      setUnreadCount(res.unreadCount || 0);
+    } catch {
+      /* the bell keeps its last value */
+    }
+  }, []);
 
+  useEffect(() => {
+    refreshUnread();
+    const timer = setInterval(refreshUnread, 30000);
+    return () => clearInterval(timer);
+  }, [refreshUnread]);
+
+  const renderPage = () => {
     const isEmployee = user?.role === "employee";
+    const canManageStaff = ["founder", "admin", "hr"].includes(user?.role);
 
     switch (activePage) {
       // DASHBOARD
 
       case "dashboard":
         return isEmployee ? (
-          <EmployeeDashboard user={user} />
+          <EmployeeDashboard user={user} setActivePage={setActivePage} />
         ) : (
           <CompanyDashboard user={user} setActivePage={setActivePage} />
         );
@@ -87,8 +123,8 @@ export default function DashboardApp() {
         );
 
       case "add-employees":
-        return isEmployee ? (
-          <ComingSoon title="Attendance" />
+        return !canManageStaff ? (
+          <ComingSoon title="Add Employee" />
         ) : (
           <AddEmployee
             setActivePage={setActivePage}
@@ -96,6 +132,7 @@ export default function DashboardApp() {
             onNext={() => setActivePage("view-employees")}
           />
         );
+
       case "edit-employee":
         return isEmployee ? (
           <ComingSoon title="Edit Employee" />
@@ -111,17 +148,14 @@ export default function DashboardApp() {
 
       case "payroll":
         return isEmployee ? (
-          <ComingSoon title="My Payslips" />
+          <ComingSoon title="Payroll" />
         ) : (
           <Payroll
             user={user}
             setActivePage={setActivePage}
             onBack={() => setActivePage("dashboard")}
-            // IMPORTANT:
             // Payroll sends the real payroll ID here
             onNext={(payrollId) => {
-              console.log("Opening payroll approval:", payrollId);
-
               setSelectedPayrollId(payrollId);
               setActivePage("payroll-approval");
             }}
@@ -140,13 +174,8 @@ export default function DashboardApp() {
         ) : (
           <PayrollApproval
             payrollId={selectedPayrollId}
-            onBack={() => {
-              setActivePage("payroll");
-            }}
-            onApproved={() => {
-              // After approval return to payroll
-              setActivePage("payment-gateway");
-            }}
+            onBack={() => setActivePage("payroll")}
+            onApproved={() => setActivePage("payment-gateway")}
           />
         );
 
@@ -158,17 +187,36 @@ export default function DashboardApp() {
       // FINANCING
 
       case "financing":
-        return <Financing user={user} />;
+        return isEmployee ? (
+          <ComingSoon title="Financing" />
+        ) : (
+          <Financing user={user} />
+        );
+
+      case "my-loans":
+        return <ComingSoon title="My Loans" />;
+
+      case "loan-approvals":
+        return <ComingSoon title="Loan Requests" />;
 
       // NOTIFICATION
 
       case "notification":
-        return <Notification setActivePage={setActivePage} />;
+        return (
+          <Notification
+            setActivePage={setActivePage}
+            onChange={refreshUnread}
+          />
+        );
 
       // SETTINGS
 
       case "settings":
-        return <CompanySettings user={user} />;
+        return isEmployee ? (
+          <ComingSoon title="Settings" />
+        ) : (
+          <CompanySettings user={user} />
+        );
 
       // PAYMENT GATEWAY
 
@@ -188,20 +236,19 @@ export default function DashboardApp() {
       case "audit-log":
         return isEmployee ? <ComingSoon title="Audit Log" /> : <AuditLog />;
 
-      //PAY SLIP
-      case "payslip":
-        return isEmployee ? <ComingSoon title="My Payslips" /> : <Payslip />;
+      // PAY SLIP
+      // Employees see their own payslips; company users see the HR payslip screen
 
-      case "overtime":
-        return isEmployee ? <ComingSoon title="Overtime" /> : <Overtime />;
+      case "payslip":
+        return isEmployee ? <MyPayslip /> : <Payslip />;
 
       // DEFAULT
 
       default:
         return isEmployee ? (
-          <ComingSoon title="Employee Dashboard" />
+          <EmployeeDashboard user={user} setActivePage={setActivePage} />
         ) : (
-          <CompanyDashboard user={user} />
+          <CompanyDashboard user={user} setActivePage={setActivePage} />
         );
     }
   };
@@ -234,10 +281,19 @@ export default function DashboardApp() {
         <NewHeader
           toggleSidebar={() => setSidebarOpen((o) => !o)}
           user={user}
+          setActivePage={setActivePage}
+          unreadCount={unreadCount}
         />
 
         <main className="flex-1 overflow-y-auto bg-gray-50">
-          {renderPage()}
+          <TemporaryPasswordBanner user={user} onDone={handleLogout} />
+          {PAGE_MODULE[activePage] ? (
+            <ModuleGuard module={PAGE_MODULE[activePage]}>
+              {renderPage()}
+            </ModuleGuard>
+          ) : (
+            renderPage()
+          )}
         </main>
       </div>
     </div>
