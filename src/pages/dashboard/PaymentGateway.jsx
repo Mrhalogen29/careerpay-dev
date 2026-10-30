@@ -1,18 +1,22 @@
-import { useState, useEffect } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
-  ArrowLeft,
-  Landmark,
-  Info,
-  CheckCircle2,
-  Loader2,
   AlertTriangle,
+  ArrowLeft,
+  CheckCircle2,
+  Info,
+  Landmark,
+  Loader2,
+  RefreshCw,
+  XCircle,
 } from "lucide-react";
+
+// Match these names to what services/payroll.js exports.
+// getPayrollById -> GET /payroll/:id (check its exported name in your service file)
 import {
   getCurrentPayroll,
   getPayrollById,
-  calculatePayroll,
-  payrollApproval,
   processPayroll,
+  resetPayroll,
 } from "../../services/payroll.js";
 
 const GATEWAYS = [
@@ -20,120 +24,151 @@ const GATEWAYS = [
     id: "flutterwave",
     label: "Gateway A",
     name: "Flutterwave",
-    status: "Active",
-    statusColor: "bg-white/20 text-white",
     description: "Supports all banks, 2 min processing, Fee: ₦50/transfer",
-    selectable: true,
   },
   {
     id: "monnify",
     label: "Gateway B",
     name: "Monnify",
-    status: "Standby",
-    statusColor: "bg-blue-100 text-blue-700",
     description: "Supports all banks, 3 min processing, Fee: ₦45/transfer",
-    selectable: true,
-  },
-  {
-    id: "coming-soon",
-    label: "Gateway C",
-    name: "More providers",
-    status: "Coming Soon",
-    statusColor: "bg-gray-200 text-gray-500",
-    description: "Additional gateway options are on the way.",
-    selectable: false,
   },
 ];
 
-const ACTION_LABEL = {
-  draft: "Calculate Payroll",
-  calculated: "Approve Payroll",
-  approved: "Process Payment",
-};
+const POLL_MS = 4000;
+const POLL_TIMEOUT_MS = 5 * 60 * 1000;
 
 export default function PaymentGateway({ payrollId, onBack }) {
-  const [selected, setSelected] = useState("flutterwave");
   const [payroll, setPayroll] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [actionLoading, setActionLoading] = useState(false);
+  const [gateway, setGateway] = useState("flutterwave");
+  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
-  const [processed, setProcessed] = useState(false);
+  const [timedOut, setTimedOut] = useState(false);
+  const pollStart = useRef(null);
 
-  const fetchPayroll = async () => {
+  // LOAD PAYROLL
+
+  const load = useCallback(async () => {
     try {
       const res = payrollId
         ? await getPayrollById(payrollId)
         : await getCurrentPayroll();
       setPayroll(res?.data || res || null);
     } catch (err) {
-      setError(err.response?.data?.message || "Failed to load payroll.");
+      setError(
+        err?.response?.data?.message ||
+          err?.message ||
+          "Failed to load payroll.",
+      );
     } finally {
       setLoading(false);
     }
-  };
-
-  useEffect(() => {
-    fetchPayroll();
   }, [payrollId]);
 
-  const employeeCount =
-    payroll?.summary?.totalEmployees ?? payroll?.payrollItems?.length ?? 0;
-  const totalAmount = payroll?.summary?.totalNet ?? 0;
-  const status = payroll?.status || "draft";
+  useEffect(() => {
+    load();
+  }, [load]);
 
-  const handleAction = async () => {
-    if (!payroll?._id) return;
-    setActionLoading(true);
-    setError("");
-    try {
-      if (status === "draft") {
-        await calculatePayroll(payroll._id);
-      } else if (status === "calculated") {
-        await payrollApproval(payroll._id);
-      } else if (status === "approved") {
-        const res = await processPayroll(payroll._id, false, selected);
-        if (res.success) {
-          setProcessed(true);
-          return;
-        }
+  const status = payroll?.status;
+
+  // While the gateway is working, keep asking our server for the latest status.
+  // The real result arrives later through the gateway webhook.
+  useEffect(() => {
+    if (status !== "processing") {
+      pollStart.current = null;
+      setTimedOut(false);
+      return;
+    }
+
+    pollStart.current = pollStart.current ?? Date.now();
+
+    const id = setInterval(() => {
+      if (Date.now() - pollStart.current > POLL_TIMEOUT_MS) {
+        setTimedOut(true);
+        clearInterval(id);
+        return;
       }
-      await fetchPayroll();
+      load();
+    }, POLL_MS);
+
+    return () => clearInterval(id);
+  }, [status, load]);
+
+  // PROCESS PAYMENT (approved payrolls only, with the gateway the user picked)
+
+  const handleProcess = async () => {
+    if (!payroll?._id || status !== "approved") return;
+
+    setSubmitting(true);
+    setError("");
+
+    try {
+      await processPayroll(payroll._id, false, gateway);
     } catch (err) {
       setError(
-        err.response?.data?.message || "Action failed. Please try again.",
+        err?.response?.data?.message ||
+          err?.message ||
+          "Could not start payment.",
       );
     } finally {
-      setActionLoading(false);
+      await load(); // status becomes processing (or failed) either way
+      setSubmitting(false);
     }
   };
 
+  // RESET (after a failure)
+
+  const handleReset = async () => {
+    if (!payroll?._id) return;
+
+    const confirmed = window.confirm(
+      "This cancels pending/failed payments and returns the payroll to draft so you can start over. Continue?",
+    );
+    if (!confirmed) return;
+
+    try {
+      await resetPayroll(payroll._id);
+      onBack?.();
+    } catch (err) {
+      setError(err?.response?.data?.message || err?.message || "Reset failed.");
+    }
+  };
+
+  // LOADING
+
   if (loading) {
     return (
-      <div className="p-10 flex flex-col items-center justify-center min-h-[60vh] gap-4">
-        <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-        <p className="text-gray-500 font-bold animate-pulse uppercase tracking-widest text-xs">
-          Loading Payroll...
-        </p>
+      <div className="p-10 flex justify-center">
+        <Loader2 className="animate-spin text-blue-600" size={32} />
       </div>
     );
   }
 
+  const items = payroll?.payrollItems || [];
+  const paid = items.filter((i) => i.paymentStatus === "paid").length;
+  const failed = items.filter((i) => i.paymentStatus === "failed").length;
+  const total = payroll?.summary?.totalEmployees ?? items.length;
+  const amount = payroll?.summary?.totalNet ?? 0;
+  const usedGateway =
+    GATEWAYS.find((g) => g.id === payroll?.preferredGateway) ||
+    GATEWAYS.find((g) => g.id === gateway);
+
   return (
     <div className="max-w-3xl mx-auto animate-fadeIn">
-      {/* Top bar */}
       <div className="bg-white rounded-b-3xl shadow-sm border border-gray-100 px-8 py-8">
-        {/* Header */}
         <button
           onClick={onBack}
-          className="flex items-center gap-2 text-gray-400 hover:text-gray-700 transition-colors mb-2"
+          className="text-gray-400 hover:text-gray-700 mb-2"
         >
           <ArrowLeft size={20} />
         </button>
+
         <h1 className="text-2xl font-black text-gray-900">
           Select Payment Gateway
         </h1>
-        <p className="text-sm text-gray-500 font-medium mt-1">
-          {payroll?.payrollPeriod?.month
+
+        <p className="text-sm text-gray-500 mt-1">
+          {payroll?.payrollPeriod
             ? `${payroll.payrollPeriod.month}/${payroll.payrollPeriod.year} payroll run`
             : "Current payroll run"}
         </p>
@@ -144,74 +179,47 @@ export default function PaymentGateway({ payrollId, onBack }) {
           </div>
         )}
 
-        {processed ? (
-          <div className="flex flex-col items-center text-center py-14 gap-4">
-            <div className="w-16 h-16 rounded-full bg-green-50 flex items-center justify-center text-green-600">
-              <CheckCircle2 size={32} />
-            </div>
-            <p className="text-gray-600 font-medium max-w-sm">
-              Payments are being disbursed via{" "}
-              {GATEWAYS.find((g) => g.id === selected)?.name}. Track individual
-              transaction status from the payroll transactions page.
-            </p>
-          </div>
-        ) : (
+        {/* 1. APPROVED: choose a gateway and pay */}
+        {status === "approved" && (
           <>
             <p className="text-gray-700 font-medium mt-6 mb-6">
               Choose which gateway processes this disbursement.{" "}
-              <span className="font-bold">{employeeCount} employees</span> ·{" "}
-              <span className="font-bold">₦{totalAmount.toLocaleString()}</span>{" "}
-              total.
+              <b>{total} employees</b> ·{" "}
+              <b>₦{Number(amount).toLocaleString()}</b> total.
             </p>
 
-            {status !== "approved" && (
-              <div className="mb-6 flex items-center gap-2 bg-orange-50 text-orange-700 rounded-xl px-4 py-3 text-sm font-bold">
-                <AlertTriangle size={16} />
-                <span className="uppercase">{status}</span>. Click the button
-                below to move it forward before you can process payment.
-              </div>
-            )}
-
-            {/* Gateway cards */}
             <div className="space-y-4">
-              {GATEWAYS.map((gw) => {
-                const isSelected = selected === gw.id;
+              {GATEWAYS.map((g) => {
+                const selected = gateway === g.id;
                 return (
                   <button
-                    key={gw.id}
+                    key={g.id}
                     type="button"
-                    disabled={!gw.selectable}
-                    onClick={() => gw.selectable && setSelected(gw.id)}
+                    onClick={() => setGateway(g.id)}
                     className={`w-full text-left rounded-2xl p-6 flex items-start gap-4 transition-all ${
-                      !gw.selectable
-                        ? "bg-gray-50 opacity-60 cursor-not-allowed"
-                        : isSelected
-                          ? "bg-[#1D4EFF] shadow-lg shadow-blue-500/20"
-                          : "bg-gray-100 hover:bg-gray-150"
+                      selected
+                        ? "bg-[#1D4EFF] shadow-lg shadow-blue-500/20"
+                        : "bg-gray-100 hover:bg-gray-200"
                     }`}
                   >
-                    <div
-                      className={isSelected ? "text-white" : "text-gray-700"}
-                    >
-                      <Landmark size={28} />
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 flex-wrap">
-                        <h3
-                          className={`text-lg font-black ${isSelected ? "text-white" : "text-gray-900"}`}
-                        >
-                          {gw.label} — {gw.name}
-                        </h3>
-                        <span
-                          className={`px-3 py-1 rounded-full text-xs font-bold ${gw.statusColor}`}
-                        >
-                          {gw.status}
-                        </span>
-                      </div>
-                      <p
-                        className={`text-sm font-medium mt-1 ${isSelected ? "text-white/80" : "text-gray-500"}`}
+                    <Landmark
+                      size={28}
+                      className={selected ? "text-white" : "text-gray-700"}
+                    />
+                    <div>
+                      <h3
+                        className={`text-lg font-black ${
+                          selected ? "text-white" : "text-gray-900"
+                        }`}
                       >
-                        {gw.description}
+                        {g.label} — {g.name}
+                      </h3>
+                      <p
+                        className={`text-sm mt-1 ${
+                          selected ? "text-white/80" : "text-gray-500"
+                        }`}
+                      >
+                        {g.description}
                       </p>
                     </div>
                   </button>
@@ -219,37 +227,116 @@ export default function PaymentGateway({ payrollId, onBack }) {
               })}
             </div>
 
-            {/* Info banner */}
-            <div className="mt-6 flex items-start gap-3 bg-[#0a1628] text-white rounded-2xl px-6 py-4">
-              <Info size={18} className="mt-0.5 shrink-0" />
-              <p className="text-sm font-medium leading-relaxed">
-                If a transfer fails, you can retry it through a different
-                gateway from the confirmation screen — no need to restart the
-                whole run.
-              </p>
-            </div>
-
-            {/* Nav buttons */}
             <div className="flex items-center justify-between mt-8 pt-6 border-t border-gray-100">
               <button
                 onClick={onBack}
-                className="text-gray-500 font-bold text-sm hover:text-gray-900 transition-colors"
+                className="text-gray-500 font-bold text-sm"
               >
                 Back
               </button>
+
               <button
-                onClick={handleAction}
-                disabled={actionLoading || !payroll?._id}
-                className="flex items-center gap-2 bg-[#1D4EFF] hover:bg-blue-700 text-white font-bold px-8 py-3 rounded-xl shadow-lg shadow-blue-500/20 transition-all active:scale-95 disabled:opacity-50"
+                onClick={handleProcess}
+                disabled={submitting}
+                className="flex items-center gap-2 bg-[#1D4EFF] text-white font-bold px-8 py-3 rounded-xl disabled:opacity-50"
               >
-                {actionLoading ? (
-                  <Loader2 className="animate-spin" size={18} />
-                ) : (
-                  ACTION_LABEL[status] || "Continue"
-                )}
+                {submitting && <Loader2 className="animate-spin" size={18} />}
+                Process Payment via{" "}
+                {GATEWAYS.find((g) => g.id === gateway)?.name}
               </button>
             </div>
           </>
+        )}
+
+        {/* 2. PROCESSING: wait for the gateway to confirm */}
+        {status === "processing" && (
+          <div className="flex flex-col items-center text-center py-14 gap-4">
+            <Loader2 className="animate-spin text-orange-500" size={44} />
+            <h2 className="text-xl font-black text-gray-900">
+              Payment in progress
+            </h2>
+            <p className="text-gray-600 max-w-sm">
+              Sending {total} payments through {usedGateway?.name}. {paid} paid,{" "}
+              {failed} failed so far.
+            </p>
+
+            {timedOut && (
+              <p className="text-sm text-orange-700 bg-orange-50 rounded-xl px-4 py-3">
+                This is taking longer than expected. Check the Audit log for
+                each transaction&apos;s status.
+                <button onClick={load} className="ml-2 font-bold underline">
+                  Refresh
+                </button>
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* 3. COMPLETED: success */}
+        {status === "completed" && (
+          <div className="flex flex-col items-center text-center py-14 gap-4">
+            <CheckCircle2 className="text-green-600" size={52} />
+            <h2 className="text-xl font-black text-gray-900">
+              Payment successful
+            </h2>
+            <p className="text-gray-600 max-w-sm">
+              {paid} of {total} employees were paid ₦
+              {Number(amount).toLocaleString()} via {usedGateway?.name}.
+            </p>
+            <button
+              onClick={onBack}
+              className="mt-2 bg-[#1D4EFF] text-white font-bold px-8 py-3 rounded-xl"
+            >
+              Back to Payroll
+            </button>
+          </div>
+        )}
+
+        {/* 4. FAILED: show what failed and how to recover */}
+        {status === "failed" && (
+          <div className="flex flex-col items-center text-center py-14 gap-4">
+            <XCircle className="text-red-600" size={52} />
+            <h2 className="text-xl font-black text-gray-900">Payment failed</h2>
+            <p className="text-gray-600 max-w-sm">
+              {failed} of {total} payments failed via {usedGateway?.name}
+              {paid > 0 ? `, ${paid} succeeded` : ""}. See the Audit log for the
+              reason on each one.
+            </p>
+
+            <div className="flex gap-3 mt-2">
+              <button
+                onClick={handleReset}
+                className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 font-bold px-6 py-3 rounded-xl"
+              >
+                <RefreshCw size={16} /> Reset and try again
+              </button>
+              <button
+                onClick={onBack}
+                className="border border-gray-200 font-bold px-6 py-3 rounded-xl"
+              >
+                Back
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* 5. Anything else (draft / calculated): not ready for payment */}
+        {!["approved", "processing", "completed", "failed"].includes(
+          status,
+        ) && (
+          <div className="flex flex-col items-center text-center py-14 gap-4">
+            <Info className="text-gray-400" size={40} />
+            <p className="text-gray-600">
+              This payroll is <b>{status}</b>. It must be approved before you
+              can pay.
+            </p>
+            <button
+              onClick={onBack}
+              className="bg-[#1D4EFF] text-white font-bold px-8 py-3 rounded-xl"
+            >
+              Back to Payroll
+            </button>
+          </div>
         )}
       </div>
     </div>

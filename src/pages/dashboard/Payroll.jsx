@@ -16,8 +16,6 @@ import {
 import {
   getCurrentPayroll,
   calculatePayroll,
-  payrollApproval,
-  processPayroll,
   resetPayroll,
   correctPayrollItem,
 } from "../../services/payroll.js";
@@ -30,8 +28,6 @@ export default function Payroll({ onNext, onPaymentStarted, setActivePage }) {
   const [payroll, setPayroll] = useState(null);
   const [loading, setLoading] = useState(true);
   const [calculating, setCalculating] = useState(false);
-  const [approving, setApproving] = useState(false);
-  const [processing, setProcessing] = useState(false);
   const [resetting, setResetting] = useState(false);
   const [error, setError] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
@@ -98,30 +94,7 @@ export default function Payroll({ onNext, onPaymentStarted, setActivePage }) {
     }
   };
 
-  const handleApprove = async () => {
-    if (!payroll?._id) return;
-
-    try {
-      setError("");
-      setApproving(true);
-
-      await payrollApproval(payroll._id);
-
-      await fetchPayroll();
-    } catch (err) {
-      console.error("Payroll approval failed:", err);
-
-      setError(
-        err?.response?.data?.message ||
-          err?.message ||
-          "Payroll approval failed.",
-      );
-    } finally {
-      setApproving(false);
-    }
-  };
-
-  // OPEN APPROVAL SCREEN
+  // OPEN APPROVAL SCREEN (approval happens there)
 
   const handleOpenApproval = () => {
     if (!payroll?._id) return;
@@ -131,33 +104,14 @@ export default function Payroll({ onNext, onPaymentStarted, setActivePage }) {
     }
   };
 
-  // PROCESS PAYMENT
+  // GO TO GATEWAY PAGE (it chooses the gateway and starts the payment)
 
-  const handleProcessPayment = async () => {
+  const handleGoToGateway = () => {
     if (!payroll?._id) return;
-
-    try {
-      setProcessing(true);
-      setError("");
-
-      await processPayroll(payroll._id, false, "flutterwave");
-
-      await fetchPayroll();
-      onPaymentStarted?.(payroll._id);
-    } catch (err) {
-      console.error("Payment processing failed:", err);
-
-      setError(
-        err?.response?.data?.message ||
-          err?.message ||
-          "Payment processing failed.",
-      );
-    } finally {
-      setProcessing(false);
-    }
+    onPaymentStarted?.(payroll._id);
   };
 
-  // SAVE OVERTIME (before approval, unta
+  // SAVE OVERTIME (before approval, untaxed)
 
   const handleSaveOvertime = async (employeeId) => {
     if (!payroll?._id) return;
@@ -199,7 +153,7 @@ export default function Payroll({ onNext, onPaymentStarted, setActivePage }) {
         Tax: item.deductions?.tax || 0,
         Pension: item.deductions?.pension || 0,
         NHF: item.deductions?.nhf || 0,
-        "LOan Repayment": item.deductions?.loanRepayment || 0,
+        "Loan Repayment": item.deductions?.loanRepayment || 0,
         Overtime: item.additions?.overtime || 0,
         "Net Salary": item.netSalary || 0,
         "Payment Status": item.paymentStatus || "pending",
@@ -369,6 +323,7 @@ export default function Payroll({ onNext, onPaymentStarted, setActivePage }) {
             <p className="font-medium text-sm">{error}</p>
           </div>
         )}
+
         {/* ACTION BAR */}
         <div className="bg-white border border-gray-200 rounded-2xl p-5 mb-6">
           <div className="flex items-center justify-between gap-4">
@@ -420,65 +375,35 @@ export default function Payroll({ onNext, onPaymentStarted, setActivePage }) {
                   )}
                 </button>
               )}
-              {isCalculated && (
-                <>
-                  <button
-                    onClick={handleOpenApproval}
-                    className="flex items-center gap-2 px-5 py-3 rounded-lg bg-white border border-gray-200 text-gray-700 font-bold text-sm hover:bg-gray-50"
-                  >
-                    <ShieldCheck size={17} />
-                    Review
-                  </button>
 
-                  <button
-                    onClick={handleApprove}
-                    disabled={approving}
-                    className="flex items-center gap-2 px-6 py-3 rounded-lg bg-[#1D4EFF] text-white font-bold text-sm hover:bg-blue-700 disabled:opacity-50"
-                  >
-                    {approving ? (
-                      <>
-                        <Loader2 size={17} className="animate-spin" />
-                        Approving...
-                      </>
-                    ) : (
-                      <>
-                        <ShieldCheck size={17} />
-                        Approve Payroll
-                      </>
-                    )}
-                  </button>
-                </>
-              )}
-              {isApproved && (
+              {isCalculated && (
                 <button
-                  onClick={handleProcessPayment}
-                  disabled={processing}
-                  className="flex items-center gap-2 px-6 py-3 rounded-lg bg-green-600 text-white font-bold text-sm hover:bg-green-700 disabled:opacity-50"
+                  onClick={handleOpenApproval}
+                  className="flex items-center gap-2 px-6 py-3 rounded-lg bg-[#1D4EFF] text-white font-bold text-sm hover:bg-blue-700"
                 >
-                  {processing ? (
-                    <>
-                      <Loader2 size={17} className="animate-spin" />
-                      Processing Payment...
-                    </>
-                  ) : (
-                    <>
-                      <CreditCard size={17} />
-                      Process Payroll Payment
-                    </>
-                  )}
+                  <ShieldCheck size={17} />
+                  Review
                 </button>
               )}
-              {isProcessing && (
-                <div className="flex items-center gap-2 px-5 py-3 bg-orange-50 text-orange-700 rounded-lg font-bold text-sm">
-                  <Loader2 size={17} className="animate-spin" />
-                  Payment Processing...
-                </div>
+
+              {isApproved && (
+                <button
+                  onClick={handleGoToGateway}
+                  className="flex items-center gap-2 px-6 py-3 rounded-lg bg-green-600 text-white font-bold text-sm hover:bg-green-700"
+                >
+                  <CreditCard size={17} />
+                  Select Payment Gateway
+                </button>
               )}
-              {isCompleted && (
-                <div className="flex items-center gap-2 px-5 py-3 bg-green-50 text-green-700 rounded-lg font-bold text-sm">
-                  <CheckCircle2 size={18} />
-                  Payroll Completed
-                </div>
+
+              {(isProcessing || isCompleted || isFailed) && (
+                <button
+                  onClick={handleGoToGateway}
+                  className="flex items-center gap-2 px-6 py-3 rounded-lg bg-white border border-gray-200 text-gray-700 font-bold text-sm hover:bg-gray-50"
+                >
+                  <CreditCard size={17} />
+                  View Payment Status
+                </button>
               )}
 
               {(isCalculated || isApproved || isProcessing || isFailed) && (
@@ -503,6 +428,7 @@ export default function Payroll({ onNext, onPaymentStarted, setActivePage }) {
             </div>
           </div>
         </div>
+
         {/* SUMMARY CARDS  */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-5 mb-6">
           <div className="bg-white border border-gray-200 rounded-xl p-5">
@@ -539,6 +465,7 @@ export default function Payroll({ onNext, onPaymentStarted, setActivePage }) {
             </p>
           </div>
         </div>
+
         {/* PAYROLL TABLE*/}
         <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
           <div className="px-6 py-5 border-b border-gray-200 flex items-center justify-between">
@@ -582,30 +509,24 @@ export default function Payroll({ onNext, onPaymentStarted, setActivePage }) {
                   <th className="text-left px-6 py-4 text-xs font-bold text-gray-500 uppercase">
                     Employee
                   </th>
-
                   <th className="text-right px-6 py-4 text-xs font-bold text-gray-500 uppercase">
                     Gross
                   </th>
-
                   <th className="text-right px-6 py-4 text-xs font-bold text-gray-500 uppercase">
                     Tax
                   </th>
-
                   <th className="text-right px-6 py-4 text-xs font-bold text-gray-500 uppercase">
                     Pension
                   </th>
                   <th className="text-right px-6 py-4 text-xs font-bold text-gray-500 uppercase">
                     NHF
                   </th>
-
                   <th className="text-right px-6 py-4 text-xs font-bold text-gray-500 uppercase">
                     Loan
                   </th>
-
                   <th className="text-right px-6 py-4 text-xs font-bold text-gray-500 uppercase">
                     Overtime
                   </th>
-
                   <th className="text-right px-6 py-4 text-xs font-bold text-gray-500 uppercase">
                     Net pay{" "}
                   </th>
@@ -628,8 +549,6 @@ export default function Payroll({ onNext, onPaymentStarted, setActivePage }) {
                 ) : (
                   filteredItems.map((item, index) => {
                     const employee = item.employee || {};
-
-                    const paymentStatus = item.paymentStatus || "pending";
 
                     return (
                       <motion.tr
@@ -731,6 +650,7 @@ export default function Payroll({ onNext, onPaymentStarted, setActivePage }) {
             </table>
           </div>
         </div>
+
         {/* FOOTER */}
         <div className="mt-6 flex items-center gap-2 text-xs text-gray-500">
           <FileSpreadsheet size={15} />
